@@ -10,11 +10,13 @@ from CAL import cal_dis
 app = Flask(__name__)
 CORS(app)  # 在应用上启用CORS
 
+
 @app.route('/get_array', methods=['POST'])
 def get_array():
     res = [0] * 10
     ##处理逻辑
     return jsonify(res)
+
 
 def save_frames(video_path, output_dir):
     cap = cv2.VideoCapture(video_path)
@@ -33,6 +35,7 @@ def save_frames(video_path, output_dir):
 
     return frames_paths
 
+
 @app.route('/get_frames', methods=['POST'])
 def get_frames():
     try:
@@ -46,10 +49,12 @@ def get_frames():
     except Exception as e:
         return jsonify({"error": str(e)})
 
+
 @app.route('/get_frame/<frame_number>')
 def get_frame(frame_number):
     temp_dir = 'C:\\Users\\oewt\\Desktop\\temp_frames\\frames\\'
     return send_from_directory(temp_dir, f'frame_{frame_number}.jpg')
+
 
 @app.route('/get_video', methods=['POST'])
 def get_video():
@@ -66,6 +71,7 @@ def convert_float32(value):
         return tuple(convert_float32(item) for item in value)
     return float(value)
 
+
 @app.route('/get_point_cloud', methods=['POST'])
 def get_point_cloud():
     point_cloud_path = 'C:\\Users\\oewt\\Desktop\\ply\\ply\\ground_truth.ply'
@@ -79,6 +85,7 @@ def get_point_cloud():
                "y": convert_float32(vertex['y']),
                "z": convert_float32(vertex['z'])} for vertex in vertex_data]
     return jsonify(points)
+
 
 if __name__ == '__main__':
     app.run(debug=True)

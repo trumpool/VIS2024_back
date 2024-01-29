@@ -14,6 +14,7 @@ import sys
 
 
 def draw_registration_result(source, target, transform):
+    # 绘制配准结果
     # ply1.paint_uniform_color([1, 0.706, 0])
     # ply2.paint_uniform_color([0, 0.651, 0.929])
     source_view = copy.deepcopy(source)
@@ -28,11 +29,13 @@ def draw_registration_result(source, target, transform):
 
 
 def save_pcd(source, target, transform):
+    # 保存配准后的点云
     Combined_pcd = source.transform(transform) + target
     o3d.io.write_point_cloud('Mapped_PCD.ply', Combined_pcd)
 
 
 def preprocess_point_cloud(pcd, voxel_size):
+    # 对点云进行预处理，包括下采样、估计法线和计算FPFH特征。
     print(":: Downsample with a voxel size {:.3f}".format(voxel_size))
     pcd_down = pcd.voxel_down_sample(voxel_size)
 
@@ -50,6 +53,7 @@ def preprocess_point_cloud(pcd, voxel_size):
 
 
 def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size):
+    # 执行全局点云配准，使用RANSAC算法
     distance_threshold = voxel_size * 1.5
     # distance_threshold = voxel_size * 0.8
     print(":: RANSAC registration on downsampled point clouds.")
@@ -66,6 +70,7 @@ def execute_global_registration(source_down, target_down, source_fpfh, target_fp
 
 
 def refine_registration(source, target, result_ransac, voxel_size):
+    # 对初始配准结果进行细化，使用点到平面的ICP算法。
     distance_threshold = voxel_size * 0.4
     print(":: Point-to-plane ICP registration is applied on orginal point")
     print("   cloud to refine the alignment. This time we use a stirct")
@@ -79,6 +84,7 @@ def refine_registration(source, target, result_ransac, voxel_size):
 
 
 def execute_fast_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size):
+    # 执行快速全局点云配准
     distance_threshold = voxel_size * 0.4
     print(":: Apply fast global registration with distance threshold {:.3f}".format(distance_threshold))
     result = o3d.pipelines.registration.registration_fgr_based_on_feature_matching(
@@ -88,17 +94,11 @@ def execute_fast_global_registration(source_down, target_down, source_fpfh, targ
 
 
 def cal_dis():
-    """
-    计算两个点云之间的距离，并进行预处理和配准操作。
-
-    Returns:
-        ply1 (open3d.geometry.PointCloud): 预处理后的第一个点云。
-        ply2 (open3d.geometry.PointCloud): 预处理后的第二个点云。
-    """
+    # 主要的功能在这里实现
+    # step1 读入点云数据，地址需要自己修改一下，之后使用的时候，点云应该作为参数传入
     ply1 = o3d.io.read_point_cloud("C:\\Users\\oewt\\Desktop\\ply\\ply\\reconstruction.ply")
     ply2 = o3d.io.read_point_cloud("C:\\Users\\oewt\\Desktop\\ply\\ply\\ground_truth.ply")
-    
-    # Step 2: Radius Outlier Removal
+    # Step 2: 去除离群点
     cl, ind = ply1.remove_radius_outlier(nb_points=16, radius=0.015)
     ply1 = ply1.select_by_index(ind)
 
@@ -122,6 +122,7 @@ def cal_dis():
     trans_init = np.asarray([[0.0, 0.0, 1.0, 0.0], [1.0, 0.0, 0.0, 0.0],
                              [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
     ply1.transform(trans_init)
+    # draw_registration_result(ply1, ply2, np.identity(4))
 
     voxel_size = 0.01
     source_down, source_fpfh = preprocess_point_cloud(ply1, voxel_size)
@@ -133,10 +134,12 @@ def cal_dis():
     print("Global registration took {:.3f} sec.\n".format(time.time() - start))
     print(result_ransac)
     print("Result transform: {}".format(result_ransac.transformation))
-
+    # draw_registration_result(source_down, target_down, result_ransac.transformation)
+    # draw_registration_result(ply1, ply2, result_ransac.transformation)
     # 使用ICP细化配准。
     result_icp = refine_registration(ply1, ply2, result_ransac, voxel_size)
     print(result_icp)
+    # draw_registration_result(ply1, ply2, result_icp.transformation)
 
     # save_pcd(ply1, ply2, result_icp.transformation)
 
@@ -146,9 +149,11 @@ def cal_dis():
     result_fast = execute_fast_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size)
     print("fast global registration took {:.3f} sec.\n".format(time.time() - start))
     print(result_fast)
+    # draw_registration_result(source_down, target_down, result_fast.transformation)
+    # draw_registration_result(ply1, ply2, result_fast.transformation)
     result_icp = refine_registration(ply1, ply2, result_fast, voxel_size)
     print(result_icp)
-
+    # draw_registration_result(ply1, ply2, result_icp.transformation)
     # Step 5: 计算 Hausdorff Distance
     distances = ply2.compute_point_cloud_distance(ply1)
 
@@ -156,8 +161,7 @@ def cal_dis():
     distances = np.asarray(distances)
     distances = np.clip(distances, 0, 0.5)
     colors = plt.get_cmap("coolwarm")(distances / np.max(distances))[:, :3]
-    ply2.colors = o3d.utility.Vector3dVector(colors)
-    
-    return ply1, ply2
+    ply2.colors = o3d.utility.Vector5dVector(colors)
+    return ply1,  ply2
 
 
